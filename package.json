@@ -1,0 +1,26 @@
+{
+  "name": "@geekberry/cbor",
+  "version": "0.0.0",
+  "license": "MIT",
+  "main": "src/index.js",
+  "files": [
+    "src"
+  ],
+  "dependencies": {
+    "bignumber.js": "^9.0.1",
+    "ieee754": "^1.2.1"
+  },
+  "devDependencies": {
+    "@geekberry/jsdoc-to-md": "^0.0.8",
+    "@types/node": "^14.14.16",
+    "eslint": "^6.3.0",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-plugin-import": "^2.18.2",
+    "jest": "^24.9.0"
+  },
+  "scripts": {
+    "eslint": "eslint ./src ./test",
+    "test": "jest",
+    "public": "yarn publish --access=public"
+  }
+}
