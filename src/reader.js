@@ -2,6 +2,9 @@ const ieee754 = require('ieee754');
 
 class BufferReader {
   constructor(buffer, index = 0) {
+    if (!Buffer.isBuffer(buffer)) {
+      throw new Error(`expected buffer tp be Buffer, got ${buffer}`);
+    }
     this.buffer = buffer;
     this.index = index;
   }

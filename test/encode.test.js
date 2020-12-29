@@ -1,6 +1,12 @@
 const url = require('url');
 const BigNumber = require('bignumber.js');
-const { CONST, Simple, Tagged, encode, decode } = require('../src/index');
+const { CONST, Simple, Tagged, Indefinite, encode, decode } = require('../src/index');
+
+class URL extends String {
+  toCBOR() {
+    return new Tagged(CONST.TAG.URI, this.toString());
+  }
+}
 
 test('encode === decode', () => {
   const array = [
@@ -36,6 +42,49 @@ test('encode === decode', () => {
   }
 });
 
+test('Indefinite', () => {
+  const array = [
+    Buffer.from('buffer'),
+    'string',
+    [1, 2, 3],
+    { a: 1, b: 2 },
+    new Map([[1, 100], [2, 200]]),
+    new Tagged(24, 'tagged'),
+  ];
+
+  for (const each of array) {
+    const value = new Indefinite(each);
+    const buffer = encode(value);
+
+    expect(buffer[buffer.length - 1]).toEqual(CONST.BREAK_CODE);
+
+    const result = decode(buffer);
+    expect(result).toEqual(each);
+  }
+});
+
+test('not Indefinite', () => {
+  const array = [
+    -1, 0, 1,
+    -Math.PI, Math.PI,
+    true, false, null, undefined,
+    BigInt(-1), BigInt(1),
+    new Date(),
+    /0x[0-9a-f]+/,
+    new Simple(100),
+  ];
+
+  for (const each of array) {
+    const value = new Indefinite(each);
+    const buffer = encode(value);
+
+    expect(buffer[buffer.length - 1]).not.toEqual(CONST.BREAK_CODE);
+
+    const result = decode(buffer);
+    expect(result).toEqual(each);
+  }
+});
+
 // ----------------------------------------------------------------------------
 test('BigNumber(Infinity)', () => {
   const value = BigNumber(Infinity);
@@ -65,15 +114,29 @@ test('Set([null,1,"2"])', () => {
   expect(result).toEqual([null, 1, '2']);
 });
 
-test('toCBOR', () => {
-  class URL extends String {
-    toCBOR() {
-      return new Tagged(CONST.TAG.URI, this.toString());
-    }
-  }
+test('Indefinite Set([null,1,"2"])', () => {
+  const value = new Set([null, 1, '2']);
+  const buffer = encode(new Indefinite(value));
 
+  expect(buffer[buffer.length - 1]).toEqual(CONST.BREAK_CODE);
+
+  const result = decode(buffer);
+  expect(result).toEqual([null, 1, '2']);
+});
+
+test('toCBOR', () => {
   const value = new URL('http://localhost:80');
   const buffer = encode(value);
+  const result = decode(buffer);
+  expect(result).toEqual(url.parse('http://localhost:80'));
+});
+
+test('Indefinite toCBOR', () => {
+  const value = new URL('http://localhost:80');
+  const buffer = encode(new Indefinite(value));
+
+  expect(buffer[buffer.length - 1]).toEqual(CONST.BREAK_CODE);
+
   const result = decode(buffer);
   expect(result).toEqual(url.parse('http://localhost:80'));
 });

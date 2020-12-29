@@ -1,18 +1,16 @@
 const url = require('url');
 const BigNumber = require('bignumber.js');
 const { TYPE, TAG, INDEFINITE, BREAK_CODE } = require('./const');
-const Simple = require('./Simple');
-const Tagged = require('./Tagged');
+const { Simple, Tagged } = require('./type');
 const BufferReader = require('./reader');
 
 class Decoder {
-  static decode(buffer, index) {
-    const reader = new BufferReader(buffer, index);
-    const decoder = new this();
-    return decoder.decode(reader);
+  static fromBuffer(buffer, index) {
+    return this.decode(new BufferReader(buffer, index));
   }
 
-  decode(reader) {
+  // --------------------------------------------------------------------------
+  static decode(reader) {
     const byte = reader.readByte();
     const type = byte & 0b11100000;
     const value = byte & 0b00011111;
@@ -38,7 +36,7 @@ class Decoder {
     }
   }
 
-  decodePositive(reader, value) {
+  static decodePositive(reader, value) {
     let integer;
     if (0 <= value && value <= 23) {
       integer = value;
@@ -56,12 +54,12 @@ class Decoder {
     return integer;
   }
 
-  decodeNegative(reader, value) {
+  static decodeNegative(reader, value) {
     const num = this.decodePositive(reader, value);
     return -1 - num;
   }
 
-  decodeBuffer(reader, value) {
+  static decodeBuffer(reader, value) {
     if (value === INDEFINITE) {
       const array = [];
       while (reader.pickByte() !== BREAK_CODE) {
@@ -75,7 +73,7 @@ class Decoder {
     return reader.readBuffer(size);
   }
 
-  decodeString(reader, value) {
+  static decodeString(reader, value) {
     if (value === INDEFINITE) {
       const array = [];
       while (reader.pickByte() !== BREAK_CODE) {
@@ -89,7 +87,7 @@ class Decoder {
     return buffer.toString();
   }
 
-  decodeArray(reader, value) {
+  static decodeArray(reader, value) {
     const size = value === INDEFINITE ? Infinity : this.decodePositive(reader, value);
 
     const array = [];
@@ -104,7 +102,7 @@ class Decoder {
     return array;
   }
 
-  decodeMap(reader, value) {
+  static decodeMap(reader, value) {
     const size = value === INDEFINITE ? Infinity : this.decodePositive(reader, value);
 
     let isObject = true;
@@ -129,7 +127,7 @@ class Decoder {
   }
 
   // ----------------------------------- TAG ----------------------------------
-  decodeTag(reader, value) {
+  static decodeTag(reader, value) {
     const tag = this.decodePositive(reader, value);
 
     switch (tag) {
@@ -151,18 +149,18 @@ class Decoder {
     }
   }
 
-  decodeDate(reader, tag) {
+  static decodeDate(reader, tag) {
     const timestamp = this.decode(reader);
     return tag === TAG.DATE_ISO ? new Date(timestamp) : new Date(timestamp * 1000);
   }
 
-  decodeBigInt(reader, tag) {
+  static decodeBigInt(reader, tag) {
     const buffer = this.decode(reader);
     const bigInt = BigInt(`0x${buffer.toString('hex')}`);
     return tag === TAG.POSITIVE_BIGINT ? bigInt : BigInt(-1) - bigInt;
   }
 
-  decodeBigNumber(reader, tag) {
+  static decodeBigNumber(reader, tag) {
     const [exponent, bigInt] = this.decode(reader);
     const base = tag === TAG.BIG_FLOAT ? 2 : 10;
 
@@ -175,22 +173,22 @@ class Decoder {
       string = string.padEnd(string.length + exponent, '0');
     } // exponent === 0 pass
 
-    const bigNumber = base === 2 ? BigNumber(`0b${string}`) : BigNumber(string);
+    const bigNumber = base === 2 ? BigNumber(`0b${string}`) : BigNumber(string); // BigNumber(string, base) will lose precision
     return isNegative ? bigNumber.negated() : bigNumber;
   }
 
-  decodeURL(reader) {
+  static decodeURL(reader) {
     const string = this.decode(reader);
     return url.parse(string);
   }
 
-  decodeRegex(reader) {
+  static decodeRegex(reader) {
     const string = this.decode(reader);
     return new RegExp(string);
   }
 
   // --------------------------------- SPECIAL --------------------------------
-  decodeSpecial(reader, value) {
+  static decodeSpecial(reader, value) {
     let result;
     if (0 <= value && value <= 19) {
       result = this.decodeSimple(reader, value);
@@ -216,7 +214,7 @@ class Decoder {
     return result;
   }
 
-  decodeSimple(reader, value) {
+  static decodeSimple(reader, value) {
     return new Simple(value);
   }
 }

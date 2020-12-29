@@ -1,16 +1,16 @@
 const CONST = require('./const');
-const Simple = require('./Simple');
-const Tagged = require('./Tagged');
+const { Indefinite, Simple, Tagged } = require('./type');
 const Encoder = require('./Encoder');
 const Decoder = require('./Decoder');
 
 module.exports = {
   CONST,
+  Indefinite,
   Simple,
   Tagged,
   Encoder,
   Decoder,
 
-  encode: (...args) => Encoder.encode(...args),
-  decode: (...args) => Decoder.decode(...args),
+  encode: (...args) => Encoder.toBuffer(...args),
+  decode: (...args) => Decoder.fromBuffer(...args),
 };

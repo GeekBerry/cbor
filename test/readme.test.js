@@ -1,10 +1,8 @@
-# @geekberry/cbor
+/* eslint-disable */
+const BigNumber = require('bignumber.js');
+const cbor = require('../src');
 
-## Usage
-
-* basic encode/decode
-
-```js
+test('basic encode/decode', () => {
   const object = {
     i: 1,
     f: -Math.PI,
@@ -46,11 +44,9 @@
     tagged: Tagged { tag: 40, value: 'TAGGED' }
   }
    */
-```
+});
 
-* force indefinite
-
-```js
+test('force indefinite', () => {
   console.log(cbor.encode('abcd')); // <Buffer 64 61 62 63 64>
   console.log(cbor.encode(new cbor.Indefinite('abcd'))); // <Buffer 7f 64 61 62 63 64 ff>
 
@@ -60,11 +56,9 @@
 
   console.log(cbor.encode({ a: 1, b: 2 })); // <Buffer a2 61 61 01 61 62 02>
   console.log(cbor.encode(new cbor.Indefinite({ a: 1, b: 2 }))); // <Buffer bf 61 61 01 61 62 02 ff>
-```
+});
 
-* custom Simple
-
-```js
+test('custom Simple', () => {
   class None {
     toCBOR() {
       return new cbor.Simple(19); // 19 as new special
@@ -94,11 +88,9 @@
 
   const result = MyDecoder.fromBuffer(buffer);
   console.log(result); // None {}
-```
+});
 
-* custom Tagged
-
-```js
+test('custom Tagged', () => {
   class Complex {
     constructor(i, j) {
       this.i = i;
@@ -133,11 +125,4 @@
 
   const result = MyDecoder.fromBuffer(buffer);
   console.log(result); // Complex { i: 0, j: -1 }
-```
-
-
-## Reference
-
-* [RFC 7049](https://tools.ietf.org/html/rfc7049)
-* [RFC 8152](https://tools.ietf.org/html/rfc8152)
-* [CBOR Tags](https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml)
+});

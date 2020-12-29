@@ -1,18 +1,19 @@
+/* eslint-disable no-unused-expressions */
+
 const BigNumber = require('bignumber.js');
-const { TYPE, TAG } = require('./const');
-const Simple = require('./Simple');
-const Tagged = require('./Tagged');
+const { TYPE, TAG, INDEFINITE, BREAK_CODE } = require('./const');
+const { Simple, Tagged, Indefinite } = require('./type');
 const BufferWriter = require('./writer');
 
 class Encoder {
-  static encode(value) {
+  static toBuffer(value) {
     const writer = new BufferWriter();
-    const encoder = new this();
-    encoder.encode(writer, value);
+    this.encode(writer, value);
     return writer.toBuffer();
   }
 
-  encode(writer, value) {
+  // --------------------------------------------------------------------------
+  static encode(writer, value, indefinite) {
     switch (value) {
       case false:
         return this.encodeSimple(writer, 20);
@@ -32,7 +33,7 @@ class Encoder {
           ? this.encodeInteger(writer, value)
           : this.encodeFloat(writer, value);
       case 'string':
-        return this.encodeString(writer, value);
+        return this.encodeString(writer, value, indefinite);
       case 'bigint':
         return this.encodeBigInt(writer, value);
       default:
@@ -41,9 +42,9 @@ class Encoder {
 
     switch (value.constructor) {
       case Set:
-        return this.encodeSet(writer, value);
+        return this.encodeSet(writer, value, indefinite);
       case Map:
-        return this.encodeMap(writer, value);
+        return this.encodeMap(writer, value, indefinite);
       case Date:
         return this.encodeDate(writer, value);
       case BigNumber:
@@ -53,28 +54,30 @@ class Encoder {
       case Simple:
         return this.encodeSimple(writer, value);
       case Tagged:
-        return this.encodeTag(writer, value.tag, value.value);
+        return this.encodeTag(writer, value.tag, value.value, indefinite);
+      case Indefinite:
+        return this.encode(writer, value.value, true);
       default:
         break;
     }
 
     if (Buffer.isBuffer(value)) {
-      return this.encodeBuffer(writer, value);
+      return this.encodeBuffer(writer, value, indefinite);
     }
     if (Array.isArray(value)) {
-      return this.encodeArray(writer, value);
+      return this.encodeArray(writer, value, indefinite);
     }
 
     if (typeof value.toCBOR === 'function') {
-      return this.encode(writer, value.toCBOR());
+      return this.encode(writer, value.toCBOR(), indefinite);
     }
     if (typeof value === 'object') {
-      return this.encodeObject(writer, value);
+      return this.encodeObject(writer, value, indefinite);
     }
     throw new Error(`unsupported value=${value} which typeof === "${typeof value}"`);
   }
 
-  encodeHead(writer, type, value) {
+  static encodeHead(writer, type, value) {
     if (0 <= value && value <= 23) {
       writer.writeByte(type | value);
     } else if (24 <= value && value <= 0xff) {
@@ -95,7 +98,7 @@ class Encoder {
   }
 
   // --------------------------- POSITIVE & NEGATIVE --------------------------
-  encodeInteger(writer, integer) {
+  static encodeInteger(writer, integer) {
     if (integer < 0) {
       this.encodeHead(writer, TYPE.NEGATIVE, -1 - integer);
     } else {
@@ -104,58 +107,78 @@ class Encoder {
   }
 
   // ---------------------------------- BUFFER --------------------------------
-  encodeBuffer(writer, buffer) {
+  static encodeBuffer(writer, buffer, indefinite) {
+    indefinite ? writer.writeByte(TYPE.BUFFER | INDEFINITE) : undefined;
+
+    // XXX: as a whole chunk
     this.encodeHead(writer, TYPE.BUFFER, buffer.length);
     writer.writeBuffer(buffer);
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
   // ---------------------------------- STRING --------------------------------
-  encodeString(writer, string) {
+  static encodeString(writer, string, indefinite) {
+    indefinite ? writer.writeByte(TYPE.STRING | INDEFINITE) : undefined;
+
+    // XXX: as a whole chunk
     this.encodeHead(writer, TYPE.STRING, string.length);
     writer.writeBuffer(Buffer.from(string));
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
   // ---------------------------------- ARRAY ---------------------------------
-  encodeArray(writer, array) {
-    this.encodeHead(writer, TYPE.ARRAY, array.length);
+  static encodeArray(writer, array, indefinite) {
+    indefinite ? writer.writeByte(TYPE.ARRAY | INDEFINITE) : this.encodeHead(writer, TYPE.ARRAY, array.length);
+
     array.forEach((each) => this.encode(writer, each));
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
-  encodeSet(writer, set) {
-    this.encodeHead(writer, TYPE.ARRAY, set.size);
-    set.forEach((each) => {
-      this.encode(writer, each);
-    });
+  static encodeSet(writer, set, indefinite) {
+    indefinite ? writer.writeByte(TYPE.ARRAY | INDEFINITE) : this.encodeHead(writer, TYPE.ARRAY, set.size);
+
+    set.forEach((each) => this.encode(writer, each));
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
   // ----------------------------------- MAP ----------------------------------
-  encodeMap(writer, map) {
-    this.encodeHead(writer, TYPE.MAP, map.size);
+  static encodeMap(writer, map, indefinite) {
+    indefinite ? writer.writeByte(TYPE.MAP | INDEFINITE) : this.encodeHead(writer, TYPE.MAP, map.size);
+
     for (const [k, v] of map.entries()) {
       this.encode(writer, k);
       this.encode(writer, v);
     }
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
-  encodeObject(writer, object) {
-    this.encodeHead(writer, TYPE.MAP, Object.keys(object).length);
+  static encodeObject(writer, object, indefinite) {
+    indefinite ? writer.writeByte(TYPE.MAP | INDEFINITE) : this.encodeHead(writer, TYPE.MAP, Object.keys(object).length);
+
     for (const [k, v] of Object.entries(object)) {
       this.encode(writer, k);
       this.encode(writer, v);
     }
+
+    indefinite ? writer.writeByte(BREAK_CODE) : undefined;
   }
 
   // ----------------------------------- TAG ----------------------------------
-  encodeTag(writer, tag, value) {
+  static encodeTag(writer, tag, value, indefinite) {
     this.encodeHead(writer, TYPE.TAG, tag);
-    this.encode(writer, value);
+    this.encode(writer, value, indefinite);
   }
 
-  encodeDate(writer, date) {
+  static encodeDate(writer, date) {
     this.encodeTag(writer, TAG.DATE_TIMESTAMP, Number(date) / 1000);
   }
 
-  encodeBigInt(writer, bigInt) {
+  static encodeBigInt(writer, bigInt) {
     if (bigInt < BigInt(0)) {
       const hex = (BigInt(-1) - bigInt).toString(16);
       const buffer = Buffer.from(hex.length % 2 ? `0${hex}` : hex, 'hex');
@@ -167,7 +190,7 @@ class Encoder {
     }
   }
 
-  encodeBigNumber(writer, bigNumber) {
+  static encodeBigNumber(writer, bigNumber) {
     if (bigNumber.isNaN()) {
       this.encodeFloat(writer, NaN);
     } else if (!bigNumber.isFinite()) {
@@ -184,12 +207,12 @@ class Encoder {
     }
   }
 
-  encodeRegExp(writer, regex) {
+  static encodeRegExp(writer, regex) {
     this.encodeTag(writer, TAG.REGEXP, regex.source);
   }
 
   // --------------------------------- SPECIAL --------------------------------
-  encodeSimple(writer, simple) {
+  static encodeSimple(writer, simple) {
     if (0 <= simple && simple <= 0xff) {
       this.encodeHead(writer, TYPE.SPECIAL, simple);
     } else {
@@ -197,7 +220,7 @@ class Encoder {
     }
   }
 
-  encodeFloat(writer, float) {
+  static encodeFloat(writer, float) {
     if (!Number.isFinite(float)) {
       writer.writeByte(TYPE.SPECIAL | 25);
       writer.writeFloat(float, 2);
