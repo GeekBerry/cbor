@@ -1,11 +1,11 @@
 /* eslint-disable no-use-before-define */
 
 const BigNumber = require('bignumber.js');
-const { TYPE, TAG, INDEFINITE, BREAK_CODE } = require('./const');
-const { Simple, Tagged, Indefinite } = require('./type');
+const { TYPE, TAG } = require('./const');
+const { Simple, Tagged } = require('./type');
 const BufferWriter = require('./writer');
 
-function encode(writer, value, indefinite) {
+function encode(writer, value) {
   switch (value) {
     case false:
       return encodeSimple(writer, 20);
@@ -25,7 +25,7 @@ function encode(writer, value, indefinite) {
         ? encodeInteger(writer, value)
         : encodeFloat(writer, value);
     case 'string':
-      return encodeString(writer, value, indefinite);
+      return encodeString(writer, value);
     case 'bigint':
       return encodeBigInt(writer, value);
     default:
@@ -34,9 +34,9 @@ function encode(writer, value, indefinite) {
 
   switch (value.constructor) {
     case Set:
-      return encodeSet(writer, value, indefinite);
+      return encodeSet(writer, value);
     case Map:
-      return encodeMap(writer, value, indefinite);
+      return encodeMap(writer, value);
     case Date:
       return encodeDate(writer, value);
     case BigNumber:
@@ -46,25 +46,23 @@ function encode(writer, value, indefinite) {
     case Simple:
       return encodeSimple(writer, value);
     case Tagged:
-      return encodeTag(writer, value.tag, value.value, indefinite);
-    case Indefinite:
-      return encode(writer, value.value, true);
+      return encodeTag(writer, value.tag, value.value);
     default:
       break;
   }
 
   if (Buffer.isBuffer(value)) {
-    return encodeBuffer(writer, value, indefinite);
+    return encodeBuffer(writer, value);
   }
   if (Array.isArray(value)) {
-    return encodeArray(writer, value, indefinite);
+    return encodeArray(writer, value);
   }
 
   if (typeof value.toCBOR === 'function') {
-    return encode(writer, value.toCBOR(), indefinite);
+    return encode(writer, value.toCBOR());
   }
   if (typeof value === 'object') {
-    return encodeObject(writer, value, indefinite);
+    return encodeObject(writer, value);
   }
   throw new Error(`unsupported value=${value} which typeof === "${typeof value}"`);
 }
@@ -99,71 +97,53 @@ function encodeInteger(writer, integer) {
 }
 
 // ---------------------------------- BUFFER --------------------------------
-function encodeBuffer(writer, buffer, indefinite) {
-  indefinite ? writer.writeByte(TYPE.BUFFER | INDEFINITE) : undefined;
-
-  // XXX: as a whole chunk
+function encodeBuffer(writer, buffer) {
   encodeHead(writer, TYPE.BUFFER, buffer.length);
   writer.writeBuffer(buffer);
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
 // ---------------------------------- STRING --------------------------------
-function encodeString(writer, string, indefinite) {
-  indefinite ? writer.writeByte(TYPE.STRING | INDEFINITE) : undefined;
-
-  // XXX: as a whole chunk
+function encodeString(writer, string) {
   encodeHead(writer, TYPE.STRING, string.length);
   writer.writeBuffer(Buffer.from(string));
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
 // ---------------------------------- ARRAY ---------------------------------
-function encodeArray(writer, array, indefinite) {
-  indefinite ? writer.writeByte(TYPE.ARRAY | INDEFINITE) : encodeHead(writer, TYPE.ARRAY, array.length);
+function encodeArray(writer, array) {
+  encodeHead(writer, TYPE.ARRAY, array.length);
 
   array.forEach((each) => encode(writer, each));
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
-function encodeSet(writer, set, indefinite) {
-  indefinite ? writer.writeByte(TYPE.ARRAY | INDEFINITE) : encodeHead(writer, TYPE.ARRAY, set.size);
+function encodeSet(writer, set) {
+  encodeHead(writer, TYPE.ARRAY, set.size);
 
   set.forEach((each) => encode(writer, each));
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
 // ----------------------------------- MAP ----------------------------------
-function encodeMap(writer, map, indefinite) {
-  indefinite ? writer.writeByte(TYPE.MAP | INDEFINITE) : encodeHead(writer, TYPE.MAP, map.size);
+function encodeMap(writer, map) {
+  encodeHead(writer, TYPE.MAP, map.size);
 
   for (const [k, v] of map.entries()) {
     encode(writer, k);
     encode(writer, v);
   }
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
-function encodeObject(writer, object, indefinite) {
-  indefinite ? writer.writeByte(TYPE.MAP | INDEFINITE) : encodeHead(writer, TYPE.MAP, Object.keys(object).length);
+function encodeObject(writer, object) {
+  encodeHead(writer, TYPE.MAP, Object.keys(object).length);
 
   for (const [k, v] of Object.entries(object)) {
     encode(writer, k);
     encode(writer, v);
   }
-
-  indefinite ? writer.writeByte(BREAK_CODE) : undefined;
 }
 
 // ----------------------------------- TAG ----------------------------------
-function encodeTag(writer, tag, value, indefinite) {
+function encodeTag(writer, tag, value) {
   encodeHead(writer, TYPE.TAG, tag);
-  encode(writer, value, indefinite);
+  encode(writer, value);
 }
 
 function encodeDate(writer, date) {

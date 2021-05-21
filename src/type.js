@@ -8,14 +8,7 @@ class Tagged {
   }
 }
 
-class Indefinite {
-  constructor(value) {
-    this.value = value;
-  }
-}
-
 module.exports = {
-  Indefinite,
   Simple,
   Tagged,
 };

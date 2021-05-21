@@ -46,18 +46,6 @@ test('basic encode/decode', () => {
    */
 });
 
-test('force indefinite', () => {
-  console.log(cbor.encode('abcd')); // <Buffer 64 61 62 63 64>
-  console.log(cbor.encode(new cbor.Indefinite('abcd'))); // <Buffer 7f 64 61 62 63 64 ff>
-
-  console.log(cbor.encode([1, [2, 3]])); // <Buffer 82 01 82 02 03>
-  console.log(cbor.encode(new cbor.Indefinite([1, [2, 3]]))); // <Buffer 9f 01 82 02 03 ff>
-  console.log(cbor.encode(new cbor.Indefinite([1, new cbor.Indefinite([2, 3])]))); // <Buffer 9f 01 9f 02 03 ff ff>
-
-  console.log(cbor.encode({ a: 1, b: 2 })); // <Buffer a2 61 61 01 61 62 02>
-  console.log(cbor.encode(new cbor.Indefinite({ a: 1, b: 2 }))); // <Buffer bf 61 61 01 61 62 02 ff>
-});
-
 test('custom Simple', () => {
   class None {
     toCBOR() {
