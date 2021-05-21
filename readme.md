@@ -71,28 +71,26 @@
     }
   }
 
-  class MyDecoder extends cbor.Decoder {
-    static decode(...args) {
-      const result = super.decode(...args);
+  function myDecode(...args) {
+    const result = cbor.decode(...args);
 
-      if (result instanceof cbor.Simple) {
-        switch (Number(result)) {
-          case 19:
-            return new None();
-          default:
-            return result;
-        }
+    if (result instanceof cbor.Simple) {
+      switch (Number(result)) {
+        case 19:
+          return new None();
+        default:
+          return result;
       }
-
-      return result;
     }
+
+    return result;
   }
 
   const value = new None();
   const buffer = cbor.encode(value);
   console.log(buffer); // <Buffer f3>
 
-  const result = MyDecoder.fromBuffer(buffer);
+  const result = myDecode(buffer);
   console.log(result); // None {}
 ```
 
@@ -110,28 +108,26 @@
     }
   }
 
-  class MyDecoder extends cbor.Decoder {
-    static decode(...args) {
-      const result = super.decode(...args);
+  function myDecode(...args) {
+    const result = cbor.decode(...args);
 
-      if (result instanceof cbor.Tagged) {
-        switch (result.tag) {
-          case 6:
-            return new Complex(result.value[0], result.value[1]);
-          default:
-            return result;
-        }
+    if (result instanceof cbor.Tagged) {
+      switch (result.tag) {
+        case 6:
+          return new Complex(result.value[0], result.value[1]);
+        default:
+          return result;
       }
-
-      return result;
     }
+
+    return result;
   }
 
   const value = new Complex(0, -1);
   const buffer = cbor.encode(value);
   console.log(buffer); // <Buffer c6 82 00 20>
 
-  const result = MyDecoder.fromBuffer(buffer);
+  const result = myDecode(buffer);
   console.log(result); // Complex { i: 0, j: -1 }
 ```
 
