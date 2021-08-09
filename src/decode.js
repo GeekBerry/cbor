@@ -5,6 +5,10 @@ const { TYPE, TAG, INDEFINITE, BREAK_CODE } = require('./const');
 const { Simple, Tagged } = require('./type');
 const BufferReader = require('./reader');
 
+const taggedMap = new Map();
+const simpleMap = new Map();
+
+// -----------------------------------------------------------------------------
 function decode(reader) {
   const byte = reader.readByte();
   const type = byte & 0b11100000;
@@ -121,7 +125,7 @@ function decodeMap(reader, value) {
   return isObject ? object : new Map(pairArray);
 }
 
-// ----------------------------------- TAG ----------------------------------
+// ----------------------------------- TAG -------------------------------------
 function decodeTag(reader, value) {
   const tag = decodePositive(reader, value);
 
@@ -140,7 +144,7 @@ function decodeTag(reader, value) {
     case TAG.REGEXP:
       return decodeRegex(reader, tag);
     default:
-      return new Tagged(tag, decode(reader));
+      return decodeCustomTag(reader, tag);
   }
 }
 
@@ -182,7 +186,13 @@ function decodeRegex(reader) {
   return new RegExp(string);
 }
 
-// --------------------------------- SPECIAL --------------------------------
+function decodeCustomTag(reader, tag) {
+  const value = decode(reader);
+  const func = taggedMap.get(tag);
+  return func ? func(value) : new Tagged(tag, value);
+}
+
+// --------------------------------- SPECIAL -----------------------------------
 function decodeSpecial(reader, value) {
   let result;
   if (0 <= value && value <= 19) {
@@ -210,10 +220,15 @@ function decodeSpecial(reader, value) {
 }
 
 function decodeSimple(reader, value) {
-  return new Simple(value);
+  const func = simpleMap.get(value);
+  return func ? func() : new Simple(value);
 }
 
+// =============================================================================
 module.exports = (buffer, index) => {
   const reader = new BufferReader(buffer, index);
   return decode(reader);
 };
+
+module.exports.simpleMap = simpleMap;
+module.exports.taggedMap = taggedMap;

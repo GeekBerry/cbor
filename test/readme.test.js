@@ -53,26 +53,13 @@ test('custom Simple', () => {
     }
   }
 
-  function myDecode(...args) {
-    const result = cbor.decode(...args);
-
-    if (result instanceof cbor.Simple) {
-      switch (Number(result)) {
-        case 19:
-          return new None();
-        default:
-          return result;
-      }
-    }
-
-    return result;
-  }
+  cbor.decode.simpleMap.set(19, () => new None());
 
   const value = new None();
   const buffer = cbor.encode(value);
   console.log(buffer); // <Buffer f3>
 
-  const result = myDecode(buffer);
+  const result = cbor.decode(buffer);
   console.log(result); // None {}
 });
 
@@ -88,25 +75,12 @@ test('custom Tagged', () => {
     }
   }
 
-  function myDecode(...args) {
-    const result = cbor.decode(...args);
+  cbor.decode.taggedMap.set(6, ([i, j]) => new Complex(i, j));
 
-    if (result instanceof cbor.Tagged) {
-      switch (result.tag) {
-        case 6:
-          return new Complex(result.value[0], result.value[1]);
-        default:
-          return result;
-      }
-    }
-
-    return result;
-  }
-
-  const value = new Complex(0, -1);
-  const buffer = cbor.encode(value);
+  const complex = new Complex(0, -1);
+  const buffer = cbor.encode(complex);
   console.log(buffer); // <Buffer c6 82 00 20>
 
-  const result = myDecode(buffer);
+  const result = cbor.decode(buffer);
   console.log(result); // Complex { i: 0, j: -1 }
 });

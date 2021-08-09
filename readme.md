@@ -48,20 +48,6 @@
    */
 ```
 
-* force indefinite
-
-```js
-  console.log(cbor.encode('abcd')); // <Buffer 64 61 62 63 64>
-  console.log(cbor.encode(new cbor.Indefinite('abcd'))); // <Buffer 7f 64 61 62 63 64 ff>
-
-  console.log(cbor.encode([1, [2, 3]])); // <Buffer 82 01 82 02 03>
-  console.log(cbor.encode(new cbor.Indefinite([1, [2, 3]]))); // <Buffer 9f 01 82 02 03 ff>
-  console.log(cbor.encode(new cbor.Indefinite([1, new cbor.Indefinite([2, 3])]))); // <Buffer 9f 01 9f 02 03 ff ff>
-
-  console.log(cbor.encode({ a: 1, b: 2 })); // <Buffer a2 61 61 01 61 62 02>
-  console.log(cbor.encode(new cbor.Indefinite({ a: 1, b: 2 }))); // <Buffer bf 61 61 01 61 62 02 ff>
-```
-
 * custom Simple
 
 ```js
@@ -71,26 +57,13 @@
     }
   }
 
-  function myDecode(...args) {
-    const result = cbor.decode(...args);
-
-    if (result instanceof cbor.Simple) {
-      switch (Number(result)) {
-        case 19:
-          return new None();
-        default:
-          return result;
-      }
-    }
-
-    return result;
-  }
+  cbor.decode.simpleMap.set(19, () => new None());
 
   const value = new None();
   const buffer = cbor.encode(value);
   console.log(buffer); // <Buffer f3>
 
-  const result = myDecode(buffer);
+  const result = cbor.decode(buffer);
   console.log(result); // None {}
 ```
 
@@ -108,26 +81,13 @@
     }
   }
 
-  function myDecode(...args) {
-    const result = cbor.decode(...args);
+  cbor.decode.taggedMap.set(6, ([i, j]) => new Complex(i, j));
 
-    if (result instanceof cbor.Tagged) {
-      switch (result.tag) {
-        case 6:
-          return new Complex(result.value[0], result.value[1]);
-        default:
-          return result;
-      }
-    }
-
-    return result;
-  }
-
-  const value = new Complex(0, -1);
-  const buffer = cbor.encode(value);
+  const complex = new Complex(0, -1);
+  const buffer = cbor.encode(complex);
   console.log(buffer); // <Buffer c6 82 00 20>
 
-  const result = myDecode(buffer);
+  const result = cbor.decode(buffer);
   console.log(result); // Complex { i: 0, j: -1 }
 ```
 
